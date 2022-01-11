@@ -1,0 +1,82 @@
+%% Defining Coefficients
+alpha1 = 4/15;
+alpha2 = 1/15;
+alpha3 = 1/6;
+gamma1 = 8/15;
+gamma2 = 5/12;
+gamma3 = 3/4;
+zeta1 = -17/60;
+zeta2 = -5/12;
+Re = 50;
+nx = 5;
+ny = 5;
+dx = 1;
+dy = 1;
+dt = 1e-03;
+t = 0.1;
+u = reshape(ones(ny+2,nx+1),[],1);
+v = reshape(ones(ny+1,nx+2),[],1);
+%% Modified Runge-Kutta Algorithm
+for i = 0:dt:t
+%% Predictor Step 1 
+%% Velocity x
+LHSx = dt*(alpha1/Re)*(LaplacianFinal(2,2,2,2,nx+1,ny+2,dx,dy)+0.5*(dx+dy)*ones(size(LaplacianFinal(2,2,2,2,nx+1,ny+2,dx,dy))));
+RHSx = dt*(gamma1*ConvectionOperator(u,v,1,dx,dy,nx,ny)+(alpha1/Re)*(LaplacianFinal(2,2,2,2,nx+1,ny+2,dx,dy))*u);
+ua = RHSx\(LHSx);
+ua = ua';
+%% Predictor Step 1 Velocity y
+LHSy = dt*(alpha1/Re)*LaplacianFinal(2,2,2,2,nx+2,ny+1,dx,dy);
+RHSy = dt*(gamma1*ConvectionOperator(u,v,2,dx,dy,nx,ny)+(alpha1/Re)*(LaplacianFinal(2,2,2,2,nx+2,ny+1,dx,dy))*v);
+va = RHSy\LHSy;
+va = va';
+%% Poisson's Equation
+phi = (Divergence(1,1,1,1,ua,va,nx,ny,dx,dy))\(gamma1*(LaplacianFinal(1,1,1,1,nx+2,ny+2,dx,dy)));
+%% Apply phi boundary conditions
+phi([1 nx+2 (ny+1)*(nx+2)+1 (ny+2)*(nx+2)]) = 0;
+phi(2:nx+1,:) = phi(2+nx+2:nx+1+nx+2);
+phi(2+(nx+2)*(ny+1):(nx+2)*(ny+2)-1,:) = phi(2+(nx+2)*(ny):(nx+2)*(ny+1)-1,:);
+phi(nx+3:nx+2:1+(nx+2)*(ny)) = phi(nx+4:nx+2:2+(nx+2)*(ny));
+phi(2*(nx+2):nx+2:(nx+2)*(ny+1)) = phi(2*(nx+2)-1:nx+2:(nx+2)*(ny+1)-1);
+%% Update Velocities
+utilde = ua-dt*(Gradient(phi,1,nx,ny,dx,dy,1,1,1,1));
+vtilde = va-dt*(Gradient(phi,2,nx,ny,dx,dy,1,1,1,1));
+%% Update intermediate BCs
+% Firstly enforce invalid cell velocities as zero.
+utilde([1 nx+1 1+(ny+1)*(nx+1) (nx+1)*(ny+2)],:) = 0;
+vtilde([1 nx+2 1+(ny)*(nx+2) (nx+2)*(ny+1)],:) = 0;
+% BC for u
+utilde(2:nx,:) = U;
+utilde((1+(nx+1)):nx+1:1+(ny)*(nx+1),:) = 0;
+utilde((2*(nx+1)):nx+1:(ny+1)*(nx+1),:) = 0;
+utilde(2+(nx+1)*(ny+1):(ny+2)*(nx+1)-1,:) = 0;
+% BC for v
+vtilde(2:nx,:) = 0;
+vtilde((1+(nx+2)):nx+2:1+(ny-1)*(nx+2),:) = 0;
+vtilde((2*(nx+2)):nx+2:(ny)*(nx+1),:) = 0;
+vtilde(2+(nx+2)*(ny):(ny+1)*(nx+2)-1,:) = 0;
+% Reinforce phi boundary conditions 
+phi([1 nx+2 (ny+1)*(nx+2)+1 (ny+2)*(nx+2)]) = 0;
+phi(2:nx+1,:) = phi(2+nx+2:nx+1+nx+2);
+phi(2+(nx+2)*(ny+1):(nx+2)*(ny+2)-1,:) = phi(2+(nx+2)*(ny):(nx+2)*(ny+1)-1,:);
+phi(nx+3:nx+2:1+(nx+2)*(ny)) = phi(nx+4:nx+2:2+(nx+2)*(ny));
+phi(2*(nx+2):nx+2:(nx+2)*(ny+1)) = phi(2*(nx+2)-1:nx+2:(nx+2)*(ny+1)-1);
+%% Predictor Step 2
+%% Velocity x
+LHSx = dt*(alpha1/Re)*(LaplacianFinal(2,2,2,2,nx+1,ny+2,dx,dy)+0.5*(dx+dy)*ones(size(LaplacianFinal(2,2,2,2,nx+1,ny+2,dx,dy))));
+RHSx = dt*(gamma1*ConvectionOperator(utilde,vtilde,1,dx,dy,nx,ny)+(alpha1/Re)*(LaplacianFinal(2,2,2,2,nx+1,ny+2,dx,dy))*utilde);
+ub = RHSx\(LHSx);
+ub = ua';
+%% Predictor Step 1 Velocity y
+LHSy = dt*(alpha1/Re)*LaplacianFinal(2,2,2,2,nx+2,ny+1,dx,dy);
+RHSy = dt*(gamma2*ConvectionOperator(utilde,vtilde,2,dx,dy,nx,ny)+(alpha1/Re)*(LaplacianFinal(2,2,2,2,nx+2,ny+1,dx,dy))*vtilde);
+vb = RHSy\LHSy;
+vb = vb';
+%% Poisson's Equation
+phitilde = (Divergence(1,1,1,1,ub,vb,nx,ny,dx,dy)-zeta1*(LaplacianFinal(1,1,1,1,nx+2,ny+2,dx,dy))*phi)\(gamma2*LaplacianFinal(1,1,1,1,nx+2,ny+2,dx,dy));
+
+end
+
+
+
+
+
