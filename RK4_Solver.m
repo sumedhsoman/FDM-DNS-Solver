@@ -23,40 +23,49 @@ for i = 0:dt:t
     %i % Display time step
 %% Predictor Step 1 
 %% Velocity x
+
 LHSx = dt*(alpha1/Re)*(LaplacianFinal(2,2,2,2,nx+1,ny+2,dx,dy)+0.5*(dx+dy)*ones(size(LaplacianFinal(2,2,2,2,nx+1,ny+2,dx,dy))));
 RHSx = dt*(gamma1*ConvectionOperator(u,v,1,dx,dy,nx,ny)+(alpha1/Re)*(LaplacianFinal(2,2,2,2,nx+1,ny+2,dx,dy))*u);
 ua = RHSx\(LHSx);
 ua = ua';
+
 %% Predictor Step 1 Velocity y
+
 LHSy = dt*(alpha1/Re)*(LaplacianFinal(2,2,2,2,nx+2,ny+1,dx,dy)+0.5*(dx+dy)*ones(size(LaplacianFinal(2,2,2,2,nx+1,ny+2,dx,dy))));
 RHSy = dt*(gamma1*ConvectionOperator(u,v,2,dx,dy,nx,ny)+(alpha1/Re)*(LaplacianFinal(2,2,2,2,nx+2,ny+1,dx,dy))*v);
 va = RHSy\LHSy;
 va = va';
+
 %% Poisson's Equation
+
 phi = (Divergence(1,1,1,1,ua,va,nx,ny,dx,dy))\(gamma1*(LaplacianFinal(1,1,1,1,nx+2,ny+2,dx,dy)));
 phi = phi';
+
 %% Apply phi boundary conditions
+
 phi([1 nx+2 (ny+1)*(nx+2)+1 (ny+2)*(nx+2)]) = 0;
 phi(2:nx+1) = phi(2+nx+2:2*(nx+2)-1);
 phi(2+(nx+2)*(ny+1):(nx+2)*(ny+2)-1) = phi(2+(nx+2)*(ny):(nx+2)*(ny+1)-1);
 phi(nx+3:nx+2:1+(nx+2)*(ny)) = phi(nx+4:nx+2:2+(nx+2)*(ny));
 phi(2*(nx+2):nx+2:(nx+2)*(ny+1)) = phi(2*(nx+2)-1:nx+2:(nx+2)*(ny+1)-1);
+
 %% Update Velocities
 utilde = ua-dt*(gamma1*Gradient(phi,1,nx,ny,dx,dy,1,1,1,1));
 vtilde = va-dt*(gamma1*Gradient(phi,2,nx,ny,dx,dy,1,1,1,1));
 %% Update intermediate BCs
+
 % Firstly enforce invalid cell velocities as zero.
 utilde([1 nx+1 1+(ny+1)*(nx+1) (nx+1)*(ny+2)],:) = 0;
 vtilde([1 nx+2 1+(ny)*(nx+2) (nx+2)*(ny+1)],:) = 0;
 % BC for u
-utilde(2:nx,:) = U;
+utilde(2:nx,:) = 2*U-utilde(2+nx+1:nx+nx+1,:);
 utilde((1+(nx+1)):nx+1:1+(ny)*(nx+1),:) = 0;
 utilde((2*(nx+1)):nx+1:(ny+1)*(nx+1),:) = 0;
-utilde(2+(nx+1)*(ny+1):(ny+2)*(nx+1)-1,:) = 0;
+utilde(2+(nx+1)*(ny+1):(ny+2)*(nx+1)-1,:) = 0-utilde(2+(nx+1)*(ny):(ny+1)*(nx+1)-1,:);
 % BC for v
 vtilde(2:nx,:) = 0;
-vtilde((1+(nx+2)):nx+2:1+(ny-1)*(nx+2),:) = 0;
-vtilde((2*(nx+2)):nx+2:(ny)*(nx+1),:) = 0;
+vtilde((1+(nx+2)):nx+2:1+(ny-1)*(nx+2),:) = 0-vtilde((1+(nx+2)):nx+2:1+(ny-1)*(nx+2),:);
+vtilde((2*(nx+2)):nx+2:(ny)*(nx+1),:) = 0-vtilde((2*(nx+2)-1):nx+2:(ny)*(nx+1)-1,:);
 vtilde(2+(nx+2)*(ny):(ny+1)*(nx+2)-1,:) = 0;
 % Reinforce phi boundary conditions 
 phi([1 nx+2 (ny+1)*(nx+2)+1 (ny+2)*(nx+2)]) = 0;
@@ -64,6 +73,7 @@ phi(2:nx+1) = phi(2+nx+2:nx+1+nx+2);
 phi(2+(nx+2)*(ny+1):(nx+2)*(ny+2)-1) = phi(2+(nx+2)*(ny):(nx+2)*(ny+1)-1);
 phi(nx+3:nx+2:1+(nx+2)*(ny)) = phi(nx+4:nx+2:2+(nx+2)*(ny));
 phi(2*(nx+2):nx+2:(nx+2)*(ny+1)) = phi(2*(nx+2)-1:nx+2:(nx+2)*(ny+1)-1);
+
 %% Predictor Step 2
 %% Velocity x
 LHSx = dt*(alpha1/Re)*(LaplacianFinal(2,2,2,2,nx+1,ny+2,dx,dy)+0.5*(dx+dy)*ones(size(LaplacianFinal(2,2,2,2,nx+1,ny+2,dx,dy))));
@@ -93,19 +103,19 @@ vdoubletilde = vb-dt*(Gradient((zeta1*phi+gamma2*phitilde),2,nx,ny,dx,dy,1,1,1,1
 udoubletilde([1 nx+1 1+(ny+1)*(nx+1) (nx+1)*(ny+2)],:) = 0;
 vdoubletilde([1 nx+2 1+(ny)*(nx+2) (nx+2)*(ny+1)],:) = 0;
 % BC for u
-udoubletilde(2:nx,:) = U;
+udoubletilde(2:nx,:) = 2*U-udoubletilde(2+nx+1:nx+nx+1,:);
 udoubletilde((1+(nx+1)):nx+1:1+(ny)*(nx+1),:) = 0;
 udoubletilde((2*(nx+1)):nx+1:(ny+1)*(nx+1),:) = 0;
-udoubletilde(2+(nx+1)*(ny+1):(ny+2)*(nx+1)-1,:) = 0;
+udoubletilde(2+(nx+1)*(ny+1):(ny+2)*(nx+1)-1,:) = 0-udoubletilde(2+(nx+1)*(ny):(ny+1)*(nx+1)-1,:);
 % BC for v
 vdoubletilde(2:nx,:) = 0;
-vdoubletilde((1+(nx+2)):nx+2:1+(ny-1)*(nx+2),:) = 0;
-vdoubletilde((2*(nx+2)):nx+2:(ny)*(nx+1),:) = 0;
+vdoubletilde((1+(nx+2)):nx+2:1+(ny-1)*(nx+2),:) = 0-vdoubletilde((1+(nx+2)):nx+2:1+(ny-1)*(nx+2),:);
+vdoubletilde((2*(nx+2)):nx+2:(ny)*(nx+1),:) = 0-vdoubletilde((2*(nx+2)-1):nx+2:(ny)*(nx+1)-1,:);
 vdoubletilde(2+(nx+2)*(ny):(ny+1)*(nx+2)-1,:) = 0;
 % Reinforce phi boundary conditions 
 phitilde([1 nx+2 (ny+1)*(nx+2)+1 (ny+2)*(nx+2)]) = 0;
-phitilde(2:nx+1,:) = phitilde(2+nx+2:nx+1+nx+2);
-phitilde(2+(nx+2)*(ny+1):(nx+2)*(ny+2)-1,:) = phitilde(2+(nx+2)*(ny):(nx+2)*(ny+1)-1,:);
+phitilde(2:nx+1) = phitilde(2+nx+2:nx+1+nx+2);
+phitilde(2+(nx+2)*(ny+1):(nx+2)*(ny+2)-1) = phitilde(2+(nx+2)*(ny):(nx+2)*(ny+1)-1);
 phitilde(nx+3:nx+2:1+(nx+2)*(ny)) = phitilde(nx+4:nx+2:2+(nx+2)*(ny));
 phitilde(2*(nx+2):nx+2:(nx+2)*(ny+1)) = phitilde(2*(nx+2)-1:nx+2:(nx+2)*(ny+1)-1);
 %% Predictor Step 3 
@@ -137,14 +147,14 @@ vtritilde = vc-dt*(Gradient((zeta2*phitilde+gamma3*phidoubletilde),2,nx,ny,dx,dy
 utritilde([1 nx+1 1+(ny+1)*(nx+1) (nx+1)*(ny+2)],:) = 0;
 vtritilde([1 nx+2 1+(ny)*(nx+2) (nx+2)*(ny+1)],:) = 0;
 % BC for u
-utritilde(2:nx,:) = U;
+utritilde(2:nx,:) = 2*U-utritilde(2+nx+1:nx+nx+1,:);
 utritilde((1+(nx+1)):nx+1:1+(ny)*(nx+1),:) = 0;
 utritilde((2*(nx+1)):nx+1:(ny+1)*(nx+1),:) = 0;
-utritilde(2+(nx+1)*(ny+1):(ny+2)*(nx+1)-1,:) = 0;
+utritilde(2+(nx+1)*(ny+1):(ny+2)*(nx+1)-1,:) = 0-utritilde(2+(nx+1)*(ny):(ny+1)*(nx+1)-1,:);
 % BC for v
 vtritilde(2:nx,:) = 0;
-vtritilde((1+(nx+2)):nx+2:1+(ny-1)*(nx+2),:) = 0;
-vtritilde((2*(nx+2)):nx+2:(ny)*(nx+1),:) = 0;
+vtritilde((1+(nx+2)):nx+2:1+(ny-1)*(nx+2),:) = 0-vtritilde((1+(nx+2)):nx+2:1+(ny-1)*(nx+2),:);
+vtritilde((2*(nx+2)):nx+2:(ny)*(nx+1),:) = 0-vtritilde((2*(nx+2)-1):nx+2:(ny)*(nx+1)-1,:);
 vtritilde(2+(nx+2)*(ny):(ny+1)*(nx+2)-1,:) = 0;
 % Reinforce phi boundary conditions 
 phidoubletilde([1 nx+2 (ny+1)*(nx+2)+1 (ny+2)*(nx+2)]) = 0;
@@ -155,7 +165,11 @@ phidoubletilde(2*(nx+2):nx+2:(nx+2)*(ny+1)) = phidoubletilde(2*(nx+2)-1:nx+2:(nx
 % Update final velocity
 u = utritilde;
 v = vtritilde;
-CFL(i) = max((dt/dx)*u,[],'all');
+CFL = mean((dt/dx).*u,'all');
+disp("Timestep")
+disp(i)
+disp("Courant No",CFL)
+disp(CFL)
 uvis = reshape(u',[],nx+1);
 vvis = reshape(v',[],nx+2);
 end
